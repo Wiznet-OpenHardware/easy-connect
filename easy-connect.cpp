@@ -69,6 +69,10 @@ ISM43362Interface wifi;
 #include "EthernetInterface.h"
 EthernetInterface eth;
 
+#elif MBED_CONF_APP_NETWORK_INTERFACE == ETHERNET_W5500
+#include "W5500Interface.h"
+W5500Interface eth(W5500_SPI_MOSI, W5500_SPI_MISO, W5500_SPI_SCLK, W5500_SPI_CS, W5500_SPI_RST);
+
 #elif MBED_CONF_APP_NETWORK_INTERFACE == MESH_LOWPAN_ND
 #define EASY_CONNECT_MESH
 #include "NanostackInterface.h"
@@ -263,6 +267,16 @@ NetworkInterface* easy_connect(bool log_messages) {
     connect_success = wnc.connect();
 
 #elif MBED_CONF_APP_NETWORK_INTERFACE == ETHERNET
+    if (log_messages) {
+        printf("[EasyConnect] Using Ethernet\n");
+    }
+    network_interface = &eth;
+#if MBED_CONF_EVENTS_SHARED_DISPATCH_FROM_APPLICATION
+    eth.set_blocking(false);
+#endif
+    connect_success = eth.connect();
+
+#elif MBED_CONF_APP_NETWORK_INTERFACE == ETHERNET_W5500
     if (log_messages) {
         printf("[EasyConnect] Using Ethernet\n");
     }
