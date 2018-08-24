@@ -69,6 +69,10 @@ ISM43362Interface wifi;
 #include "EthernetInterface.h"
 EthernetInterface eth;
 
+#elif MBED_CONF_APP_NETWORK_INTERFACE == ETHERNET_W5500
+#include "W5500Interface.h"
+W5500Interface eth(W5500_SPI_MOSI, W5500_SPI_MISO, W5500_SPI_SCLK, W5500_SPI_CS, W5500_SPI_RST);
+
 #elif MBED_CONF_APP_NETWORK_INTERFACE == MESH_LOWPAN_ND
 #define EASY_CONNECT_MESH
 #include "NanostackInterface.h"
@@ -267,10 +271,15 @@ NetworkInterface* easy_connect(bool log_messages) {
         printf("[EasyConnect] Using Ethernet\n");
     }
     network_interface = &eth;
-#if MBED_CONF_EVENTS_SHARED_DISPATCH_FROM_APPLICATION
-    eth.set_blocking(false);
-#endif
     connect_success = eth.connect();
+
+#elif MBED_CONF_APP_NETWORK_INTERFACE == ETHERNET_W5500
+    if (log_messages) {
+        printf("[EasyConnect] Using Ethernet(W5500)\n");
+    }
+    network_interface = &eth;
+    connect_success = eth.connect();
+
 #endif
 
 #ifdef EASY_CONNECT_MESH
@@ -279,46 +288,10 @@ NetworkInterface* easy_connect(bool log_messages) {
         printf("[EasyConnect] Connecting to Mesh...\n");
     }
     network_interface = &mesh;
-#if MBED_CONF_EVENTS_SHARED_DISPATCH_FROM_APPLICATION
-    mesh.set_blocking(false);
-#endif
     mesh.initialize(&rf_phy);
     connect_success = mesh.connect();
 #endif
-    if(connect_success == 0
-#if (MBED_CONF_EVENTS_SHARED_DISPATCH_FROM_APPLICATION && (MBED_CONF_APP_NETWORK_INTERFACE == ETHERNET || defined(EASY_CONNECT_MESH)))
-            || connect_success == NSAPI_ERROR_IS_CONNECTED || connect_success == NSAPI_ERROR_ALREADY
-#endif
-            ) {
-#if (MBED_CONF_EVENTS_SHARED_DISPATCH_FROM_APPLICATION && (MBED_CONF_APP_NETWORK_INTERFACE == ETHERNET || defined(EASY_CONNECT_MESH)))
-        nsapi_connection_status_t connection_status;
-
-        for (;;) {
-
-            // Check current connection status.
-            connection_status = network_interface->get_connection_status();
-
-            if (connection_status == NSAPI_STATUS_GLOBAL_UP) {
-
-                // Connection ready.
-                break;
-
-            } else if (connection_status == NSAPI_STATUS_ERROR_UNSUPPORTED) {
-
-                if (log_messages) {
-                    print_MAC(network_interface, log_messages);
-                    printf("[EasyConnect] Connection to Network Failed %d!\n", connection_status);
-                }
-                return NULL;
-
-            }
-
-            // Not ready yet, give some runtime to the network stack.
-            mbed::mbed_event_queue()->dispatch(100);
-
-        }
-#endif
-
+    if(connect_success == 0) {
         if (log_messages) {
             printf("[EasyConnect] Connected to Network successfully\n");
             print_MAC(network_interface, log_messages);
@@ -396,6 +369,12 @@ NetworkInterface* easy_get_netif(bool log_messages) {
 #elif MBED_CONF_APP_NETWORK_INTERFACE == ETHERNET
     if (log_messages) {
         printf("[EasyConnect] Ethernet\n");
+    }
+    return &eth;
+
+#elif MBED_CONF_APP_NETWORK_INTERFACE == ETHERNET_W5500
+    if (log_messages) {
+        printf("[EasyConnect] Ethernet(W5500)\n");
     }
     return &eth;
 
